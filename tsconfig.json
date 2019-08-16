@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "target": "ES6",
+        "strict": true,
+        "noImplicitAny": true,
+        "resolveJsonModule": true,
+        "moduleResolution": "node"
+    }
+}
