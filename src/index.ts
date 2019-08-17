@@ -17,6 +17,10 @@ interface ClassData {
     key: string | null;
 }
 
+interface ObjectDescriptor {
+    value: any;
+    meta: any;
+}
 interface ObjectSerialization {
     class: string;
     value: any;
@@ -55,12 +59,13 @@ class UneteX {
     port: number;
     secret: string;
     module: any;
-    classes: Map<any, ClassData> = new Map();
+    classRefs: any;
 
     constructor (module: any, config: UneteXConfig) {
         this.port = config.port;
         this.secret = config.secret || Math.random().toString();
         this.module = module;
+        this.classRefs = {};
 
         this.init();
     }
@@ -80,7 +85,7 @@ class UneteX {
         const metadata = XReflect.getClassMetadata(_class_);
 
         if(metadata.flags & VIRTUAL) { /* Only virtual classes will be assigned */
-            this.classes.set(_class_, classData(metadata, _class_));
+            this.classRefs[metadata.ref] = _class_;
         }
     }
 
@@ -89,22 +94,22 @@ class UneteX {
      * 
      * @param data. Data to sign
      */
-    sign (data: any) {
-        return jwt.sign(data, this.secret);
-    }
+        sign (data: any) {
+            return jwt.sign(data, this.secret);
+        }
 
-    verify (token: string) {
-        return jwt.verify(token, this.secret);
-    }
+        verify (token: string) {
+            return jwt.verify(token, this.secret);
+        }
 
-    encrypt (data: any) {
-        return encrypt(data, this.secret);
-    }
+        encrypt (data: any) {
+            return encrypt(data, this.secret);
+        }
 
-    decrypt (data: any) {
-        return decrypt(data, this.secret);
-    }
-    
+        decrypt (data: any) {
+            return decrypt(data, this.secret);
+        }
+        
     /* Classes */
     /* Protocol */
         async processRequest (query: UneteXQuery) {
@@ -118,35 +123,94 @@ class UneteX {
 
         async processInfoRequest ({ route, context }: UneteXInfoRequest) {
             const { class: className, self } = context;
-            const properties = this.deserialize(className, self);
+            //! const properties = this.deserialize(className, self);
         }
     
     /* Serialization */
         
-        async serialize (object: any) {
-            return serialize(object, this);
+        serialize (o: any, propMeta?: PropertyMetadata) {
+            let result = o;
+
+            //* Objects are suspicious to have prototype, lets go and catch them all!!
+            if(typeof o === "object") result = this.serializeObject(o, propMeta);
+            
+            //* Property Pipeline!
+            if(propMeta) {
+                //* Let's encrypt the hidden properties
+                if(propMeta.flags & HIDDEN) result = this.encrypt(result);
+            }
+
+            return result;
         }
 
-        async deserialize (className: string, self: string) {
-            const data: any = this.verify(self);
-            const _class_ = this.module[className];
-            const metadata = this.classes.get(_class_);
 
-            if(!metadata) return data;
+        serializeObject (o: any, propMeta?: PropertyMetadata) {
+            const classMeta: ClassMetadata = XReflect.getClassMetadata(o.constructor);
+            let newObject: any = {};
 
-            const { fields } = metadata.meta;
-            const newObject: any = {};
-
-            for(const fieldName in fields) {
-                const { flags } = fields;
-
-                if(flags & HIDDEN) {
-                    newObject[fieldName] = decrypt(data[fieldName], this.secret);
-                } else {
-                    newObject[fieldName] = data[fieldName];
-                }
+            for(const i in o) {
+                if(!o.hasOwnProperty(i)) continue;
+                newObject[i] = this.serialize(o[i], classMeta.fields[i]);
             }
+
+            //* Are you <class> registered???
+            if(!this.classRefs[classMeta.ref]){
+                //* No??!! Impossible!! Let's register...
+                this.initializeClass(o.constructor);
+            }
+            
+            return <ObjectDescriptor> {
+                value: newObject,
+                meta: classMeta.flags & VIRTUAL? classMeta : null
+            }
+        }
+        
+        deserialize (o: any, propMeta?: PropertyMetadata) {
+            let result = o;
+
+            //* Hey bud! can i see your metadata?
+            if(propMeta) {
+                //* Encrypted stuff, go decrypted
+                if(propMeta.flags & HIDDEN) result = this.decrypt(result);
+            }
+
+            if(typeof result === "object") result = this.deserializeObject(result, propMeta);
+
+            return result;
+        }
+
+        deserializeObject (o: any, propMeta?: PropertyMetadata) {
+            const { value: rawObject, meta: classMeta } = o;
+            let newObject: any = {};
+                    
+            //* If there isn't classMeta, just return the rawObject
+                if(!classMeta) return rawObject;
+            
+            //? Hmm... let's check for your prototype
+                const baseClass = this.classRefs[classMeta.ref];
+                if(baseClass) newObject = Object.create(baseClass.prototype); 
+            
+                //? Do the hard work bud...
+                for(const fieldName in rawObject){
+                    newObject[fieldName] = this.deserialize(rawObject[fieldName], classMeta.fields[fieldName])
+                }
+                    
+
+            return newObject;
         }
 }
 
 export default UneteX;
+
+/**
+ * * 2019-08-17T02:39:05.680Z - This is so beautiful! ❤️ Now... Hidden fields works!! it does works!!
+ * ? 2019-08-17T02:47:50.855Z - 🤦‍♂️ Lol, noticed that i have initialized in the class and not the constructor, i saved me from a future memory conflict :3
+ * ! 2019-08-17T03:06:25.037Z - Hmm... I think the ref is important, the trouble is... ah :/ i will need to restructure some shit for using names then
+ * ! 2019-08-17T03:14:32.462Z - 😭 Hmm... The recursion is bugged :T... Lets se what happens
+ * ? 2019-08-17T03:22:32.531Z - I did it... i killed `classes: Map<...>` it wont be with us anymore, REST IN PEACE ON OUR MEMORIES
+ * * 2019-08-17T03:25:05.205Z - Wow, this was easier than i though, now, let s see if it works! ... Pretty sure it wont ha ha ha!
+ * ? 2019-08-17T03:25:45.283Z - It didn't :T
+ * * 2019-08-17T03:38:04.239Z - IT WORKED!!! THE FUSION WORKED!!! YEAH! 🎂
+ * * 2019-08-17T03:48:32.597Z - Its children... Everything is working ok!!! WOW! Im so happuu
+ * 
+ */

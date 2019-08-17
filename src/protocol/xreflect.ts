@@ -1,6 +1,7 @@
 import { NONE, SYNC } from './enums';
-
+let uniqueIdCounter = 0;
 export interface ClassMetadata {
+    ref: number;
     flags: number;
     fields: any;
 }
@@ -10,14 +11,17 @@ export interface PropertyMetadata {
 }
 
 export function defaultClassMetadata (): ClassMetadata {
+    //? SHOULD I PUT A RANDOM NAME????
     return <ClassMetadata> {
+        ref: uniqueIdCounter++,
         flags: NONE,
         fields: {}
     }
 }
 
-export function defaultPropertyMetadata (): PropertyMetadata {
+export function defaultPropertyMetadata (_class_: any, classMeta: ClassMetadata): PropertyMetadata {
     return <PropertyMetadata> {
+        class: classMeta.ref,
         flags: NONE
     }
 }
@@ -31,5 +35,5 @@ export function getClassMetadata (_class_: any) {
 export function getPropertyMetadata (_class_: any, property: string) {
     const metadata = getClassMetadata(_class_);
 
-    return metadata.fields[property] || (metadata.fields[property] = defaultPropertyMetadata());
+    return metadata.fields[property] || (metadata.fields[property] = defaultPropertyMetadata(_class_, metadata));
 }

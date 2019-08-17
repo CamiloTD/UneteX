@@ -5,13 +5,18 @@ import { virtual, key, hidden, sync } from '../src/decorators';
     @key name: string;
     @hidden password: string;
     @sync age = 0;
+    
+    parent: User | null | undefined;
 
-    constructor (name: string, password?: string) {
+    constructor (name: string, password?: string, parent?: User) {
         this.name = name;
         this.password = password || "";
+        this.parent = parent;
     }
 
-    birthday () { this.age++; }
+    say (message: string) {
+        console.log(`${this.name}: ${message}`);
+    }
 }
 
 export default User;

@@ -11,7 +11,6 @@ export const HIDDEN = 2; // Encrypted
 export const KEY = 4;
 
 export const VIRTUAL = 8; // Classes will be accessible from outside
-export const INSTANCIABLE = 16; // Classes can be instantiated from outside (Instanciables will automatically activate the VIRTUAL flag)
 
 export const ACTION_INFO = "action";
 export const ACTION_CALL = "call";

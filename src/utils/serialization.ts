@@ -1,5 +1,7 @@
 import { isClass } from ".";
 import UneteX from "..";
+import { getClassMetadata } from "../protocol/xreflect";
+import { VIRTUAL } from "../protocol/enums";
 
 interface ObjectDescriptor {
     value: any;
@@ -7,35 +9,30 @@ interface ObjectDescriptor {
 }
 
 const SerializeMethods: any = {
-     
-    undefined (): ObjectDescriptor { return <ObjectDescriptor>{ value: undefined, meta: null }; },
     
     object (o: any, unetex: UneteX) {
-        const meta = unetex.classes.get(o.constructor);
+        const meta = getClassMetadata(o.constructor);
 
         let newObject: any = {};
 
-        for(const i in o) newObject[i] = serialize(o[i], unetex);
+        for(const i in o) {
+            if(!o.hasOwnProperty(i)) continue;
+            newObject[i] = serialize(o[i]);
+        }
         
         return <ObjectDescriptor> {
             value: newObject,
-            meta: null
+            meta: meta.flags & VIRTUAL? meta : null
         }
-    },
-
-    boolean () {},
-    number () {},
-    bigint () {},
-    string () {},
-    symbol () {},
-    function () {}
+    }
 
 }
 
-export function serialize (object: any, unetex: UneteX) {
-    const obj: ObjectDescriptor = SerializeMethods[isClass(object)? "class" : typeof object](object, unetex);
-
-
+export function serialize (o: any) {
+    if(typeof o === "object") return SerializeMethods.object(o);
+    if(isClass(o)) return SerializeMethods.class(o);
+    
+    return o;
 }
 
 /*export function deserialize (className: string, self: string) {
