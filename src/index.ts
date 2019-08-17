@@ -65,7 +65,7 @@ class UneteX extends UneteIO.Server {
             },
 
             classRefs: ()  => this.classRefs,
-            class: (ref: number) => this.classRefs[ref]
+            classRef: (ref: number) => this.classRefs[ref]
         });
 
         this.secret = config.secret || Math.random().toString();
@@ -132,9 +132,12 @@ class UneteX extends UneteIO.Server {
             const fieldName = route[route.length - 1];
 
             try {
+                const rawResponse = await pointer[fieldName](...args);
+                const signedResponse = this.serializeAndSign(rawResponse);
+                
                 return <UneteXResponse> {
                     error: null,
-                    response: this.serializeAndSign(await pointer[fieldName](...args)),
+                    response: signedResponse,
                     self: self? this.serializeAndSign(newObject): null
                 }
             } catch (exc) {
@@ -225,7 +228,7 @@ class UneteX extends UneteIO.Server {
             return this.sign(this.serialize(o));
         }
 
-        deserializeSigned (token: string) {
+        deserializeSigned (token: string | null) {
             return token && this.deserialize(this.verify(token));
         }
 }

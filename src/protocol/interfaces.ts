@@ -24,5 +24,5 @@
     export interface UneteXCallQuery {
         route: Array<string>;
         args: Array<any>;
-        self: string;
+        self: string | null;
     }
