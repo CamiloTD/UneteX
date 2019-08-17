@@ -198,6 +198,14 @@ class UneteX {
 
             return newObject;
         }
+    
+        serializeAndSign (o: any) {
+            return this.sign(this.serialize(o));
+        }
+
+        deserializeSigned (token: string) {
+            return this.deserialize(this.verify(token));
+        }
 }
 
 export default UneteX;
@@ -211,6 +219,7 @@ export default UneteX;
  * * 2019-08-17T03:25:05.205Z - Wow, this was easier than i though, now, let s see if it works! ... Pretty sure it wont ha ha ha!
  * ? 2019-08-17T03:25:45.283Z - It didn't :T
  * * 2019-08-17T03:38:04.239Z - IT WORKED!!! THE FUSION WORKED!!! YEAH! 🎂
- * * 2019-08-17T03:48:32.597Z - Its children... Everything is working ok!!! WOW! Im so happuu
+ * * 2019-08-17T03:48:32.597Z - Its children... Everything is working ok!!! WOW! Im so happy
+ * * 2019-08-17T04:06:16.533Z - Uff... this was a hard work... now, the sign & verification is ok, now objects can be freezed
  * 
  */

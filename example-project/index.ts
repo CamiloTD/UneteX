@@ -9,10 +9,10 @@ const Camilo = new User("Camilo", "randomPassword");
 //? and son Camilin, will travel...
 const Camilin = new User("Camilin", "randomPassword2", Camilo);
 
-const serialized = app.serialize(Camilin); //? Crush these data
+const serialized = app.serializeAndSign(Camilin); //? Crush these data
 
 //? Did they survive?...
-const NeoCamilin = app.deserialize(serialized);
+const NeoCamilin = app.deserializeSigned(serialized);
 
 NeoCamilin.say('Am i alive??');
 NeoCamilin.parent.say('Am i too??');
