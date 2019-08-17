@@ -1,7 +1,7 @@
 import * as jwt from 'jsonwebtoken';
 import * as XReflect from './protocol/xreflect';
 
-import { UneteXQuery, UneteXInfoRequest } from './protocol/interfaces';
+import { UneteXQuery, UneteXInfoRequest, ObjectDescriptor, UneteXCallQuery, UneteXResponse } from './protocol/interfaces';
 import { ACTION_INFO, ACTION_CALL, ACTION_CREATE, VIRTUAL, KEY, HIDDEN } from './protocol/enums';
 import { isClass, decrypt, encrypt } from './utils/index';
 import { ClassMetadata, PropertyMetadata} from './protocol/xreflect';
@@ -17,10 +17,6 @@ interface ClassData {
     key: string | null;
 }
 
-interface ObjectDescriptor {
-    value: any;
-    meta: any;
-}
 interface ObjectSerialization {
     class: string;
     value: any;
@@ -114,16 +110,38 @@ class UneteX {
     /* Protocol */
         async processRequest (query: UneteXQuery) {
             switch(query.action){
-                case ACTION_INFO:
-                    return await this.processInfoRequest(query.query);
                 case ACTION_CALL:
+                   return await this.processCallRequest(query.query)
                 case ACTION_CREATE:
             }
         }
 
-        async processInfoRequest ({ route, context }: UneteXInfoRequest) {
-            const { class: className, self } = context;
-            //! const properties = this.deserialize(className, self);
+        async processCallRequest (query: UneteXCallQuery) {
+            const { route, args, self } = query;
+            const newObject = this.deserializeSigned(self);
+            let lastFieldName: string;
+
+            let pointer = self? newObject : this.module;
+
+            for(let i=0, l=route.length-1;i<l;i++) {
+                pointer = pointer[route[i]];
+            }
+
+            const fieldName = route[route.length - 1];
+
+            try {
+                return <UneteXResponse> {
+                    error: null,
+                    response: this.serializeAndSign(await pointer[fieldName](...args)),
+                    self: self? this.serializeAndSign(newObject): null
+                }
+            } catch (exc) {
+                return <UneteXResponse> {
+                    error: exc,
+                    response: null,
+                    self: self? this.serializeAndSign(newObject) : null
+                }
+            }
         }
     
     /* Serialization */

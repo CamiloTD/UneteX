@@ -17,6 +17,10 @@ import { virtual, key, hidden, sync } from '../src/decorators';
     say (message: string) {
         console.log(`${this.name}: ${message}`);
     }
+
+    msg (message: string) {
+        return `${this.name}: ${message}`;
+    }
 }
 
 export default User;

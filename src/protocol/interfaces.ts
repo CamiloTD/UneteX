@@ -1,27 +1,28 @@
 /* General Query */
     export interface UneteXQuery {
         action: string;
-        query: UneteXInfoRequest;
+        query: UneteXCallQuery;
     }
 
     export interface UneteXResponse {
         error: any;
-        response: UneteXInfoResponse;
+        response: any;
+        self: any;
     }
 
 /* ObjectInfo */
     export interface UneteXInfoRequest {
         route: Array<string>;
-        context: ObjectContext;
+        context: ObjectDescriptor;
     }
 
-    export interface UneteXInfoResponse {
-        type: number;
-        flags: number;
+    export interface ObjectDescriptor {
+        value: any;
+        meta: any;
     }
 
-/* ObjectContext */
-    export interface ObjectContext {
-        class: string;
+    export interface UneteXCallQuery {
+        route: Array<string>;
+        args: Array<any>;
         self: string;
     }
