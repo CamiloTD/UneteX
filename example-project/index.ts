@@ -1,26 +1,35 @@
 import UneteX from '../src/index';
-import User from './user';
-import { serialize } from '../src/utils/serialization';
 import { ACTION_CALL } from '../src/protocol/enums';
-import { UneteXCallQuery } from '../src/protocol/interfaces';
+import User from './user';
+import * as jwt from 'jsonwebtoken';
 
-const app = new UneteX({}, { port: 5000 });
+const UneteIO: any = require('unete-io');
 
-//? Father Camilo...
-const Camilo = new User("Camilo", "randomPassword");
-//? and son Camilin, will travel...
-const Camilin = new User("Camilin", "randomPassword2", Camilo);
-
-const serialized = app.serializeAndSign(Camilin); //? Crush these data
-
-//? Did they survive?...
-app.processRequest({
-    action: ACTION_CALL,
-    query: {
-        route: ['msg'],
-        args: ['Hello, im Camilin!'],
-        self: serialized
+const app = new UneteX({
+    
+    createUser (name: string, password: string) {
+        return new User(name, password);
     }
-}).then((response: any) => {
-    console.log(app.deserializeSigned(response.response));
-});
+
+}, {});
+
+(async () => {
+    await app.listen(7575);
+
+    const client = UneteIO.Socket('http://localhost:7575');
+    const { response: camilo } = await client.call({
+        route: ['createUser'],
+        args: ['Camilo', '123'],
+        self: null
+    });
+
+    const msg = await client.call({
+        route: ['msg'],
+        args: ['Hey, im alive!'],
+        self: camilo
+    });
+
+    console.log(msg);
+
+    console.log(jwt.decode(msg.response));
+})();

@@ -7,8 +7,9 @@ import { isClass, decrypt, encrypt } from './utils/index';
 import { ClassMetadata, PropertyMetadata} from './protocol/xreflect';
 import { serialize } from './utils/serialization';
 
+const UneteIO: any = require('unete-io');
+
 interface UneteXConfig {
-    port: number;
     secret?: string;
 }
 
@@ -50,15 +51,23 @@ function classData (meta: ClassMetadata, _class_: any): ClassData {
  *  ? processInfoRequest
  * 
  */
-class UneteX {
+class UneteX extends UneteIO.Server {
     
-    port: number;
     secret: string;
     module: any;
     classRefs: any;
 
-    constructor (module: any, config: UneteXConfig) {
-        this.port = config.port;
+    constructor (module: any, config: UneteXConfig = {}) {
+        super({
+
+            call: (query: UneteXCallQuery) => {
+                return this.processCallRequest(query);
+            },
+
+            classRefs: ()  => this.classRefs,
+            class: (ref: number) => this.classRefs[ref]
+        });
+
         this.secret = config.secret || Math.random().toString();
         this.module = module;
         this.classRefs = {};
@@ -108,13 +117,6 @@ class UneteX {
         
     /* Classes */
     /* Protocol */
-        async processRequest (query: UneteXQuery) {
-            switch(query.action){
-                case ACTION_CALL:
-                   return await this.processCallRequest(query.query)
-                case ACTION_CREATE:
-            }
-        }
 
         async processCallRequest (query: UneteXCallQuery) {
             const { route, args, self } = query;
@@ -179,7 +181,7 @@ class UneteX {
             
             return <ObjectDescriptor> {
                 value: newObject,
-                meta: classMeta.flags & VIRTUAL? classMeta : null
+                meta: classMeta.flags & VIRTUAL? classMeta.ref : null
             }
         }
         
@@ -198,7 +200,8 @@ class UneteX {
         }
 
         deserializeObject (o: any, propMeta?: PropertyMetadata) {
-            const { value: rawObject, meta: classMeta } = o;
+            const { value: rawObject, meta: classRef } = o;
+            const classMeta: any = XReflect.getClassMetadata(this.classRefs[classRef]);
             let newObject: any = {};
                     
             //* If there isn't classMeta, just return the rawObject
@@ -206,7 +209,8 @@ class UneteX {
             
             //? Hmm... let's check for your prototype
                 const baseClass = this.classRefs[classMeta.ref];
-                if(baseClass) newObject = Object.create(baseClass.prototype); 
+                if(baseClass) newObject = Object.create(baseClass.prototype);
+
             
                 //? Do the hard work bud...
                 for(const fieldName in rawObject){
@@ -222,7 +226,7 @@ class UneteX {
         }
 
         deserializeSigned (token: string) {
-            return this.deserialize(this.verify(token));
+            return token && this.deserialize(this.verify(token));
         }
 }
 
@@ -239,5 +243,6 @@ export default UneteX;
  * * 2019-08-17T03:38:04.239Z - IT WORKED!!! THE FUSION WORKED!!! YEAH! 🎂
  * * 2019-08-17T03:48:32.597Z - Its children... Everything is working ok!!! WOW! Im so happy
  * * 2019-08-17T04:06:16.533Z - Uff... this was a hard work... now, the sign & verification is ok, now objects can be freezed
+ * * 2019-08-17T05:23:55.841Z - Remote prototype now works seamlessly... i love it :)
  * 
  */
