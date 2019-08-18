@@ -64,33 +64,30 @@ class UneteX extends UneteIO.Server {
                 return this.processCallRequest(query);
             },
 
-            classRefs: ()  => this.classRefs,
-            classRef: (ref: number) => this.classRefs[ref]
+            classRefs: ()  => {
+                const refs: any = {};
+                const { classRefs } = this;
+
+                for(const i in classRefs) refs[i] = XReflect.getClassMetadata(classRefs[i]);
+
+                return refs;
+            },
+            classRef: (ref: number) => XReflect.getClassMetadata(this.classRefs[ref])
         });
 
         this.secret = config.secret || Math.random().toString();
         this.module = module;
         this.classRefs = {};
-
-        this.init();
     }
 
-    init () {
-        const { module: localModules } = this;
-
-        for(const name in localModules) {
-            let element = localModules[name];
-            if(isClass(element)) {
-                this.initializeClass(element);
-            }
-        }
-    }
-
-    initializeClass (_class_: any) {
+    initializeClass (_class_: any, baseObject: any) {
         const metadata = XReflect.getClassMetadata(_class_);
 
         if(metadata.flags & VIRTUAL) { /* Only virtual classes will be assigned */
             this.classRefs[metadata.ref] = _class_;
+            
+            metadata.name = _class_.name;
+            metadata.methods = Reflect.ownKeys(Reflect.getPrototypeOf(baseObject)).filter((n) => typeof baseObject[n] === "function" && n !== "constructor");
         }
     }
 
@@ -179,7 +176,7 @@ class UneteX extends UneteIO.Server {
             //* Are you <class> registered???
             if(!this.classRefs[classMeta.ref]){
                 //* No??!! Impossible!! Let's register...
-                this.initializeClass(o.constructor);
+                this.initializeClass(o.constructor, o);
             }
             
             return <ObjectDescriptor> {

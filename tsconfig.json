@@ -6,6 +6,7 @@
         "strict": true,
         "noImplicitAny": true,
         "resolveJsonModule": true,
-        "moduleResolution": "node"
+        "moduleResolution": "node",
+        "outDir": "build"
     }
 }

@@ -5,21 +5,21 @@ export interface ClassMetadata {
     name: string;
     flags: number;
     fields: any;
-    methods: [];
+    methods: Array<string>;
 }
 
 export interface PropertyMetadata {
     flags: number;
 }
 
-export function defaultClassMetadata (_class_: any): ClassMetadata {
+export function defaultClassMetadata (): ClassMetadata {
     //? SHOULD I PUT A RANDOM NAME????
     return <ClassMetadata> {
-        name: _class_ && _class_.name || "Anonymous",
+        name: "Anonymous",
         ref: uniqueIdCounter++,
         flags: NONE,
         fields: {},
-        methods: Object.keys(_class_.prototype).filter((fnName) => typeof _class_.prototype[fnName] === "function")
+        methods: []
     }
 }
 
@@ -33,7 +33,7 @@ export function defaultPropertyMetadata (_class_: any, classMeta: ClassMetadata)
 export function getClassMetadata (_class_: any) {
     const proto = _class_.prototype? _class_.prototype : _class_;
 
-    return proto.__UneteX__ || (proto.__UneteX__ = defaultClassMetadata(_class_));
+    return proto.__UneteX__ || (proto.__UneteX__ = defaultClassMetadata());
 }
 
 export function getPropertyMetadata (_class_: any, property: string) {

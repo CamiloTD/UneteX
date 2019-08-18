@@ -14,10 +14,12 @@ const app = new UneteX({
 
 (async () => {
     await app.listen(7575);
+
     const client = UneteXClient('http://localhost:7575');
-    const camilo = await client.createUser("Camilin", "123456");
-    
-    console.log(camilo.age);
+    const camilo = await client.createUser("Camilin", "Stalin minino");
+
+    console.log(await camilo.pet.woof());
+
 })();
 
 process.on('unhandledRejection', (r: any) => console.log(r));

@@ -15,78 +15,76 @@ interface SelfContext {
     value: any;
 }
 
-function MainProxy (client: any, route: Array<string> = [], context: SelfContext = <SelfContext> { self: null, value: null }): any  {
+function MainProxy (client: Client, route: Array<string> = []): any  {
 
     return new Proxy(function () {}, {
 
         get (target: any, propertyName: string, receiver: any) {
             if(propertyName === "then") return;
-            if(propertyName === "__doc__") return context.value;
             
-            if(context.value[propertyName]) {
-                const descriptor: ObjectDescriptor= <ObjectDescriptor>JWT.decode(response);
-                
-                if(typeof descriptor !== "object") return descriptor;
-
-                return readObject(descriptor, response);
-            }
-            return MainProxy(client, [...route, propertyName], context);
-        },
-
-        set (target: any, propertyName: string, value: any) {
-           return false;
-        },
-
-        deleteProperty (target: any, propertyName: any) {
-            return false;
-        },
-
-        defineProperty (target, key, descriptor) {
-            return false
-        },
-
-        enumerate (target: any) {
-            return Object.keys(context.value);
+            return MainProxy(client, [...route, propertyName]);
         },
 
         async apply (target: any, thisArg: any, args: Array<any>) {
             await client.init();
 
-            const query = <UneteXCallQuery> {
-                route: route,
-                args: args,
-                self: context.self
-            };
-
-            //! <self> is not applying changes
-            const { error, response, self }: UneteXResponse = await client.sock.call(query);
-            
-            if(error) throw error;
-            
-            const descriptor: ObjectDescriptor= <ObjectDescriptor>JWT.decode(response);
-            
-            if(typeof descriptor !== "object") return descriptor;
-
-            return readObject(descriptor, response);
-        },
-
-        has (target: any, propertyName: string) {
-            return propertyName in context.value;
+            return await call(route, args, null);
         }
     });
 
-    function readObject (descriptor: ObjectDescriptor, self?: string) {
+    async function call (route: any, args: any, self: any) {
+        const query = <UneteXCallQuery> {
+            route: route,
+            args: args,
+            self: self
+        };
+
+        //! <self> is not applying changes
+        const { error, response }: UneteXResponse = await client.sock.call(query);
+        
+        if(error) throw error;
+        
+        const descriptor: ObjectDescriptor= <ObjectDescriptor>JWT.decode(response);
+        if(typeof descriptor !== "object") return descriptor;
+
+        return await readObject(descriptor, response);
+    }
+
+    async function readObject (descriptor: ObjectDescriptor, self?: string | null, baseRoute: Array<string> = []) {
         if(descriptor.meta !== null)
-            return MainProxy(client, [], <SelfContext>{ self: self || null, value: descriptor.value });
+            return await RemoteObject(descriptor, self || null, baseRoute);
         else
             return descriptor.value;
     }
 
-    function RemoteObject (objectValue: any, classMeta: ClassMetadata) {
-        console.log({ objectValue, classMeta });
-        const newClass = ({[classMeta.name] : class {}})[classMeta.name];
+    async function RemoteObject (descriptor: ObjectDescriptor, self: string | null, baseRoute: Array<string>) {
         
-        console.log(newClass);
+        const classMeta     = await client.classRef(descriptor.meta);
+        const newClass: any = ({[classMeta.name] : class {}})[classMeta.name];
+        const rawObject     = descriptor.value;
+        const classMethods  = classMeta.methods;
+        
+        for(const methodName of classMethods) {
+            newClass.prototype[methodName] = async function (...args: any[]) {
+                await client.init();
+
+                return await call([...baseRoute, methodName], args, self);
+            }
+        }
+        
+        const newObject: any = new newClass();
+        
+        for(const i in rawObject) {
+            let obj = rawObject[i];
+            
+            if(typeof obj === "object") obj = await readObject(rawObject[i], self, [...baseRoute, i]);
+
+            newObject[i] = obj;
+        }
+
+        //!console.log({ newClass, newObject });
+
+        return newObject;
     }
 }
 
@@ -109,6 +107,7 @@ class Client {
     }
 
     async classRef (ref: any) {
+        //! console.log({ ref, refs: this.classRefs })
         return this.classRefs[ref] || (this.classRefs[ref] = await this.sock.classRef(ref));
     }
 
