@@ -72,6 +72,7 @@ class UneteX extends UneteIO.Server {
 
                 return refs;
             },
+
             classRef: (ref: number) => XReflect.getClassMetadata(this.classRefs[ref])
         });
 
@@ -117,31 +118,31 @@ class UneteX extends UneteIO.Server {
 
         async processCallRequest (query: UneteXCallQuery) {
             const { route, args, self } = query;
-            const newObject = this.deserializeSigned(self);
+            const new_object = this.deserializeSigned(self);
             let lastFieldName: string;
 
-            let pointer = self? newObject : this.module;
+            let pointer = self? new_object : this.module;
 
             for(let i=0, l=route.length-1;i<l;i++) {
                 pointer = pointer[route[i]];
             }
 
-            const fieldName = route[route.length - 1];
+            const field_name = route[route.length - 1];
 
             try {
-                const rawResponse = await pointer[fieldName](...args);
+                const rawResponse = await pointer[field_name](...args);
                 const signedResponse = this.serializeAndSign(rawResponse);
                 
                 return <UneteXResponse> {
                     error: null,
                     response: signedResponse,
-                    self: self? this.serializeAndSign(newObject): null
+                    self: self? this.serializeAndSign(new_object): null
                 }
             } catch (exc) {
                 return <UneteXResponse> {
                     error: exc,
                     response: null,
-                    self: self? this.serializeAndSign(newObject) : null
+                    self: self? this.serializeAndSign(new_object) : null
                 }
             }
         }

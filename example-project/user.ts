@@ -1,5 +1,6 @@
 import { virtual, key, hidden, sync } from '../src/decorators';
 
+
 @virtual class User {
 
     @key name: string;
@@ -19,6 +20,11 @@ import { virtual, key, hidden, sync } from '../src/decorators';
 
     msg (message: string) {
         return `${this.name}: ${message}`;
+    }
+
+    celebrateBirthday () {
+        this.age++;
+        return `Happy birthday ${this.name}, to you <3 ${this.pet.name} loves you!`
     }
 }
 

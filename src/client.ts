@@ -32,7 +32,7 @@ function MainProxy (client: Client, route: Array<string> = []): any  {
         }
     });
 
-    async function call (route: any, args: any, self: any) {
+    async function call (route: any, args: any, self: any, caller?: any) {
         const query = <UneteXCallQuery> {
             route: route,
             args: args,
@@ -40,11 +40,25 @@ function MainProxy (client: Client, route: Array<string> = []): any  {
         };
 
         //! <self> is not applying changes
-        const { error, response }: UneteXResponse = await client.sock.call(query);
+        const { error, response, self: newSelf }: UneteXResponse = await client.sock.call(query);
         
         if(error) throw error;
         
         const descriptor: ObjectDescriptor= <ObjectDescriptor>JWT.decode(response);
+        
+        if(caller && newSelf) {
+            let descriptorNew = <ObjectDescriptor> JWT.decode(newSelf);
+            let newData = descriptorNew.value;
+
+            for(const i in newData) {
+                let obj = newData[i];
+                
+                if(typeof obj === "object") obj = await readObject(newData[i], self, [i]);
+                
+                caller[i] = obj;
+            }
+        }
+
         if(typeof descriptor !== "object") return descriptor;
 
         return await readObject(descriptor, response);
@@ -63,15 +77,6 @@ function MainProxy (client: Client, route: Array<string> = []): any  {
         const newClass: any = ({[classMeta.name] : class {}})[classMeta.name];
         const rawObject     = descriptor.value;
         const classMethods  = classMeta.methods;
-        
-        for(const methodName of classMethods) {
-            newClass.prototype[methodName] = async function (...args: any[]) {
-                await client.init();
-
-                return await call([...baseRoute, methodName], args, self);
-            }
-        }
-        
         const newObject: any = new newClass();
         
         for(const i in rawObject) {
@@ -81,6 +86,15 @@ function MainProxy (client: Client, route: Array<string> = []): any  {
 
             newObject[i] = obj;
         }
+        
+        for(const methodName of classMethods) {
+            newClass.prototype[methodName] = async function (...args: any[]) {
+                await client.init();
+
+                return await call([...baseRoute, methodName], args, self, newObject);
+            }
+        }
+        
 
         //!console.log({ newClass, newObject });
 

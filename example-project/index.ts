@@ -16,9 +16,14 @@ const app = new UneteX({
     await app.listen(7575);
 
     const client = UneteXClient('http://localhost:7575');
-    const camilo = await client.createUser("Camilin", "Stalin minino");
+    const camilo = await client.createUser("Camilin", "Mishifu");
 
-    console.log(await camilo.pet.woof());
+    console.log('Old Age: ', camilo.age);
+    
+    const birthday_message = await camilo.celebrateBirthday();
+
+    console.log(birthday_message);
+    console.log('New Age: ', camilo.age);
 
 })();
 

@@ -6,6 +6,7 @@ export interface ClassMetadata {
     flags: number;
     fields: any;
     methods: Array<string>;
+    addons: any;
 }
 
 export interface PropertyMetadata {
@@ -19,7 +20,8 @@ export function defaultClassMetadata (): ClassMetadata {
         ref: uniqueIdCounter++,
         flags: NONE,
         fields: {},
-        methods: []
+        methods: [],
+        addons: {}
     }
 }
 
@@ -40,4 +42,16 @@ export function getPropertyMetadata (_class_: any, property: string) {
     const metadata = getClassMetadata(_class_);
 
     return metadata.fields[property] || (metadata.fields[property] = defaultPropertyMetadata(_class_, metadata));
+}
+
+export function getClassHiddenMetadata (_class_: any) {
+    const proto = _class_.prototype? _class_.prototype : _class_;
+
+    return proto.__Hidden__UneteX__ || (proto.__Hidden__UneteX__ = {});
+}
+
+export function getPropertyHiddenMetadata (_class_: any, property: string) {
+    const metadata = getClassHiddenMetadata(_class_);
+
+    return metadata.fields[property] || (metadata.fields[property] = {});
 }
