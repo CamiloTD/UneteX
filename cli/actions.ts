@@ -116,6 +116,7 @@ function configureEventLogs (app: UneteX) {
         );
 
         log(danger('Throws:'), exc);
+        line();
 
         TimeMapper.delete(query);
     });

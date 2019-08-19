@@ -3,7 +3,7 @@ import * as YAML from 'yamljs';
 import { start } from './cli/actions';
 
 //* Command line options
-       program.version('0.5.0'); 
+       program.version('1.0.0'); 
        program.option('-c, --config <file_path>', 'Specifies the configuration file', (filename: string) => YAML.load(filename));
 
 //* Commands
