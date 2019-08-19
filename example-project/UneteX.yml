@@ -1,0 +1,6 @@
+applicationName: "Example UneteX Project"
+port: 7575
+
+#* Logs
+#! PENDING: Implement logo_enabled: boolean
+#! PENDING: Implement perfomance logs

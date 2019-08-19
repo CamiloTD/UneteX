@@ -7,7 +7,8 @@ import { isClass, decrypt, encrypt } from './utils/index';
 import { ClassMetadata, PropertyMetadata} from './protocol/xreflect';
 import { serialize } from './utils/serialization';
 
-const UneteIO: any = require('unete-io');
+const EventEmitter: any = require('events');
+const UneteIO     : any = require('unete-io');
 
 interface UneteXConfig {
     secret?: string;
@@ -56,6 +57,7 @@ class UneteX extends UneteIO.Server {
     secret: string;
     module: any;
     classRefs: any;
+    events: any;
 
     constructor (module: any, config: UneteXConfig = {}) {
         super({
@@ -79,6 +81,7 @@ class UneteX extends UneteIO.Server {
         this.secret = config.secret || Math.random().toString();
         this.module = module;
         this.classRefs = {};
+        this.events = new EventEmitter();
     }
 
     initializeClass (_class_: any, baseObject: any) {
@@ -89,6 +92,8 @@ class UneteX extends UneteIO.Server {
             
             metadata.name = _class_.name;
             metadata.methods = Reflect.ownKeys(Reflect.getPrototypeOf(baseObject)).filter((n) => typeof baseObject[n] === "function" && n !== "constructor");
+
+            this.events.emit('initializeClass', metadata);
         }
     }
 
@@ -118,6 +123,9 @@ class UneteX extends UneteIO.Server {
 
         async processCallRequest (query: UneteXCallQuery) {
             const { route, args, self } = query;
+
+            this.events.emit('processCallRequest', query);
+            
             const new_object = this.deserializeSigned(self);
             let lastFieldName: string;
 
@@ -129,22 +137,30 @@ class UneteX extends UneteIO.Server {
 
             const field_name = route[route.length - 1];
 
+            let rawResponse;
+
             try {
-                const rawResponse = await pointer[field_name](...args);
-                const signedResponse = this.serializeAndSign(rawResponse);
-                
-                return <UneteXResponse> {
-                    error: null,
-                    response: signedResponse,
-                    self: self? this.serializeAndSign(new_object): null
-                }
+                rawResponse = await pointer[field_name](...args);
             } catch (exc) {
+                this.events.emit('processCallRequest:error', query, exc);
+
                 return <UneteXResponse> {
                     error: exc,
                     response: null,
                     self: self? this.serializeAndSign(new_object) : null
                 }
             }
+
+            const signedResponse = rawResponse === undefined? undefined : this.serializeAndSign(rawResponse);
+            const response = <UneteXResponse> {
+                error: null,
+                response: signedResponse,
+                self: self? this.serializeAndSign(new_object): null
+            };
+
+            this.events.emit('processCallRequest:success', query, response);
+
+            return response;
         }
     
     /* Serialization */
@@ -167,11 +183,21 @@ class UneteX extends UneteIO.Server {
 
         serializeObject (o: any, propMeta?: PropertyMetadata) {
             const classMeta: ClassMetadata = XReflect.getClassMetadata(o.constructor);
-            let newObject: any = {};
+            let newObject: any;
 
-            for(const i in o) {
-                if(!o.hasOwnProperty(i)) continue;
-                newObject[i] = this.serialize(o[i], classMeta.fields[i]);
+            if(Array.isArray(o)) {
+                newObject = [];
+                
+                for(const e of o) {
+                    newObject.push(this.serialize(e));
+                }
+            } else {
+                newObject = {};
+
+                for(const i in o) {
+                    if(!o.hasOwnProperty(i)) continue;
+                    newObject[i] = this.serialize(o[i], classMeta.fields[i]);
+                }
             }
 
             //* Are you <class> registered???
@@ -196,29 +222,36 @@ class UneteX extends UneteIO.Server {
             }
 
             if(typeof result === "object") result = this.deserializeObject(result, propMeta);
-
+            
             return result;
         }
 
         deserializeObject (o: any, propMeta?: PropertyMetadata) {
             const { value: rawObject, meta: classRef } = o;
-            const classMeta: any = XReflect.getClassMetadata(this.classRefs[classRef]);
+            
+            const classMeta: any = classRef !== null? XReflect.getClassMetadata(this.classRefs[classRef]) : null;
             let newObject: any = {};
                     
             //* If there isn't classMeta, just return the rawObject
-                if(!classMeta) return rawObject;
+                if(!classMeta && !Array.isArray(rawObject)) return rawObject;
             
             //? Hmm... let's check for your prototype
+            
+            //? Array
+                if(Array.isArray(rawObject)) {
+                    newObject = [];
+                    for(const e of rawObject) newObject.push(this.deserialize(e));
+
+                    return newObject;
+                }
+
+            //? Object
                 const baseClass = this.classRefs[classMeta.ref];
                 if(baseClass) newObject = Object.create(baseClass.prototype);
 
-            
-                //? Do the hard work bud...
-                for(const fieldName in rawObject){
+                for(const fieldName in rawObject)
                     newObject[fieldName] = this.deserialize(rawObject[fieldName], classMeta.fields[fieldName])
-                }
                     
-
             return newObject;
         }
     

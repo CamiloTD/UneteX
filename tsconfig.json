@@ -7,6 +7,7 @@
         "noImplicitAny": true,
         "resolveJsonModule": true,
         "moduleResolution": "node",
-        "outDir": "build"
+        "outDir": "build",
+        "module": "commonjs"
     }
 }

@@ -4,7 +4,7 @@ import * as JWT from 'jsonwebtoken';
 import { prototype } from "stream";
 import { ClassMetadata } from "./protocol/xreflect";
 
-const UneteIO: any = require('unete-io');
+const UneteIO     : any = require('unete-io');
 
 interface ClientModel {
     classes: any;
@@ -39,7 +39,7 @@ function MainProxy (client: Client, route: Array<string> = []): any  {
             self: self
         };
 
-        //! <self> is not applying changes
+
         const { error, response, self: newSelf }: UneteXResponse = await client.sock.call(query);
         
         if(error) throw error;
@@ -59,12 +59,13 @@ function MainProxy (client: Client, route: Array<string> = []): any  {
             }
         }
 
-        if(typeof descriptor !== "object") return descriptor;
-
+        if(typeof descriptor !== "object" || !descriptor) return descriptor;
+        
         return await readObject(descriptor, response);
     }
 
     async function readObject (descriptor: ObjectDescriptor, self?: string | null, baseRoute: Array<string> = []) {
+        
         if(descriptor.meta !== null)
             return await RemoteObject(descriptor, self || null, baseRoute);
         else
@@ -78,7 +79,7 @@ function MainProxy (client: Client, route: Array<string> = []): any  {
         const rawObject     = descriptor.value;
         const classMethods  = classMeta.methods;
         const newObject: any = new newClass();
-        
+            
         for(const i in rawObject) {
             let obj = rawObject[i];
             
